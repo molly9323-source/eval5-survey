@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>수행평가를 바라보는 5가지 시선</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Pretendard','Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#f5f5f5;min-height:100vh;color:#222}
+.tab-bar{display:flex;background:#fff;border-bottom:2px solid #e0e0e0;position:sticky;top:0;z-index:100}
+.tab-btn{flex:1;padding:15px 8px;font-size:15px;font-weight:600;border:none;cursor:pointer;background:transparent;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s}
+.tab-btn.active{background:#f5f000;color:#000;border-bottom:3px solid #c8c000}
+.tab-btn:hover:not(.active){background:#fafafa}
+.page{display:none;padding:16px;max-width:720px;margin:0 auto}
+.page.active{display:block}
+.yellow-banner{background:#f5f000;border-radius:12px;padding:20px 22px;margin-bottom:18px}
+.yellow-banner h1{font-size:20px;font-weight:800;color:#000;margin-bottom:5px}
+.yellow-banner .subtitle{font-size:13px;color:#555;margin-bottom:3px}
+.yellow-banner .source{font-size:12px;color:#777;margin-top:6px;font-style:italic}
+.meta-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px}
+.field-label{font-size:12px;color:#666;margin-bottom:3px}
+.field-hint{font-size:11px;color:#bbb;margin-bottom:3px}
+input[type=text],textarea{width:100%;padding:9px 11px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;background:#fff;color:#222;resize:vertical;transition:border .2s}
+input[type=text]:focus,textarea:focus{outline:none;border-color:#c8c000;box-shadow:0 0 0 3px rgba(200,192,0,0.12)}
+.card{background:#fff;border-radius:12px;border:1px solid #eee;padding:16px 18px;margin-bottom:14px}
+.radar-score-row{display:grid;grid-template-columns:200px 1fr;gap:14px;margin-bottom:14px}
+.radar-wrap{background:#fff;border-radius:12px;border:1px solid #eee;padding:14px;display:flex;flex-direction:column;align-items:center}
+.radar-label{font-size:12px;color:#999;margin-bottom:8px;text-align:center}
+.score-item{display:flex;align-items:flex-start;gap:10px;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid #f0f0f0}
+.score-item:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.score-num{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0;margin-top:3px}
+.score-desc{flex:1}
+.score-desc .stit{font-size:13px;font-weight:600;margin-bottom:2px}
+.score-desc .ssub{font-size:11px;color:#999}
+.score-btns{display:flex;gap:5px;margin-top:6px}
+.score-btns button{width:30px;height:30px;border-radius:50%;border:1px solid #ddd;background:#fff;font-size:13px;font-weight:600;cursor:pointer;color:#444;transition:all .15s}
+.score-btns button.sel{background:#333;color:#fff;border-color:#333}
+.score-btns button:hover:not(.sel){background:#f5f5f5}
+.reflect-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.section-title{font-size:14px;font-weight:700;margin-bottom:12px;color:#333}
+.submit-btn{width:100%;padding:14px;background:#333;color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:700;cursor:pointer;transition:all .2s}
+.submit-btn:hover{background:#111}
+.submit-btn:disabled{background:#aaa;cursor:not-allowed}
+.db-header{background:#fff;padding:14px 18px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;position:sticky;top:52px;z-index:50}
+.db-title{font-size:15px;font-weight:700}
+.db-sub{font-size:12px;color:#999;margin-top:2px}
+.btn-group{display:flex;gap:6px;flex-wrap:wrap}
+.btn{padding:7px 13px;border-radius:8px;border:1px solid #ddd;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;color:#333}
+.btn:hover{background:#f5f5f5}
+.btn-danger{border-color:#e24b4a;color:#a32d2d}
+.btn-danger:hover{background:#fcebeb}
+.btn-danger.disabled{opacity:.4;cursor:not-allowed;pointer-events:none}
+.btn-refresh{background:#f5f000;border-color:#c8c000;color:#000}
+.btn-refresh:hover{background:#e8e400}
+.sel-bar{background:#f5f000;padding:9px 18px;display:none;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:#000}
+.db-body{padding:16px 18px;max-width:720px;margin:0 auto}
+.summary-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.metric-card{background:#f9f9f9;border-radius:10px;padding:14px;text-align:center}
+.metric-val{font-size:24px;font-weight:700;color:#222}
+.metric-lbl{font-size:11px;color:#888;margin-top:3px}
+.entry-card{background:#fff;border:1px solid #eee;border-radius:12px;padding:14px 16px;margin-bottom:10px;display:flex;align-items:flex-start;gap:12px;transition:box-shadow .15s}
+.entry-card:hover{box-shadow:0 2px 8px rgba(0,0,0,0.07)}
+.entry-check{margin-top:3px;width:16px;height:16px;cursor:pointer;flex-shrink:0;accent-color:#333}
+.entry-body{flex:1;min-width:0}
+.entry-top{display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap}
+.badge{padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;background:#f5f000;color:#000}
+.badge-time{font-size:11px;color:#bbb}
+.entry-name{font-size:16px;font-weight:700;margin-bottom:2px}
+.entry-meta{font-size:12px;color:#999;margin-bottom:8px}
+.entry-scores{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+.score-pill{padding:3px 9px;border-radius:20px;font-size:11px;background:#f5f5f5;color:#666;border-left:3px solid #ddd}
+.score-pill b{color:#222;font-weight:700}
+.entry-reflect{font-size:12px;color:#777;border-top:1px solid #f0f0f0;padding-top:8px;margin-top:4px;line-height:1.6}
+.empty-state{text-align:center;padding:60px 24px;color:#bbb;font-size:14px;line-height:1.8}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:11px 22px;border-radius:10px;font-size:14px;z-index:9999;opacity:0;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.chart-card{background:#f9f9f9;border-radius:10px;padding:14px}
+.chart-title{font-size:12px;color:#888;font-weight:600;margin-bottom:10px}
+@media(max-width:600px){
+  .meta-row{grid-template-columns:1fr}
+  .radar-score-row{grid-template-columns:1fr}
+  .reflect-row{grid-template-columns:1fr}
+  .summary-grid{grid-template-columns:repeat(2,1fr)}
+  .charts-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('form')" id="tab-form">✏️ 활동지 작성</button>
+  <button class="tab-btn" onclick="showTab('dash')" id="tab-dash">📊 결과 대시보드</button>
+</div>
+
+<div id="view-form" class="page active">
+  <div class="yellow-banner">
+    <h1>수행평가를 바라보는 5가지 시선</h1>
+    <div class="subtitle">자기 진단 워크 활동지 — 작성 후 제출하면 대시보드에서 모두 함께 확인할 수 있습니다</div>
+    <div class="source">[출처] 불암중학교 수석교사 이경민 선생님</div>
+  </div>
+
+  <div class="meta-row">
+    <div>
+      <div class="field-label">닉네임</div>
+      <div class="field-hint">예) 초록나무</div>
+      <input type="text" id="f-nick" placeholder="닉네임 입력">
+    </div>
+    <div>
+      <div class="field-label">근무교</div>
+      <div class="field-hint">예) ○○중학교</div>
+      <input type="text" id="f-school" placeholder="학교명 입력">
+    </div>
+    <div>
+      <div class="field-label">과목</div>
+      <div class="field-hint">예) 국어</div>
+      <input type="text" id="f-subject" placeholder="과목 입력">
+    </div>
+  </div>
+
+  <div class="radar-score-row">
+    <div class="radar-wrap">
+      <div class="radar-label">점수 선택 시 오각형이 그려집니다</div>
+      <canvas id="radar-canvas" width="170" height="160"></canvas>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="section-title">점수 선택 (1–5점)</div>
+      <div id="score-items"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">성찰과 다짐</div>
+    <div class="reflect-row">
+      <div>
+        <div class="field-label" style="margin-bottom:4px">가장 공감되는 시선과 이유</div>
+        <textarea id="f-agree" rows="3" placeholder="어떤 시선이 가장 와닿았나요?"></textarea>
+      </div>
+      <div>
+        <div class="field-label" style="margin-bottom:4px">가장 변화하고 싶은 점</div>
+        <textarea id="f-change" rows="3" placeholder="바꿔보고 싶은 점은?"></textarea>
+      </div>
+    </div>
+    <div>
+      <div class="field-label" style="margin-bottom:4px">동료 교사와 나누고 싶은 이야기 / 실천 다짐</div>
+      <textarea id="f-action" rows="3" placeholder="함께 나누고 싶은 생각이나 실천 계획을 적어보세요."></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">결과 제출</div>
+    <p style="font-size:13px;color:#777;margin-bottom:14px">작성이 완료되면 이 버튼을 눌러주세요. 제출하면 대시보드에서 모든 선생님의 결과를 함께 볼 수 있습니다.</p>
+    <button class="submit-btn" id="submit-btn" onclick="submitForm()">결과 제출하기</button>
+  </div>
+</div>
+
+<div id="view-dash" style="display:none">
+  <div class="db-header">
+    <div>
+      <div class="db-title">제출된 전체 결과</div>
+      <div class="db-sub" id="db-count">불러오는 중...</div>
+    </div>
+    <div class="btn-group">
+      <button class="btn btn-danger disabled" id="btn-del-sel" onclick="deleteSelected()">☑ 선택 삭제</button>
+      <button class="btn btn-danger" id="btn-del-all" onclick="deleteAll()">🗑 전체 삭제</button>
+      <button class="btn btn-refresh" onclick="loadDash()">↻ 새로고침</button>
+    </div>
+  </div>
+  <div class="sel-bar" id="sel-bar">
+    <span id="sel-count">0개 선택됨</span>
+    <button class="btn" style="padding:4px 10px;font-size:12px" onclick="clearSelection()">선택 해제</button>
+  </div>
+  <div class="db-body">
+    <div id="summary-section" style="display:none">
+      <div class="summary-grid" id="summary-grid"></div>
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">항목별 평균 점수</div>
+          <canvas id="avg-chart" height="140"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">과목 분포</div>
+          <div id="subject-dist" style="display:flex;flex-wrap:wrap;gap:6px;align-content:flex-start"></div>
+        </div>
+      </div>
+    </div>
+    <div id="entries-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCLEGBI8GvpIznZXRqLGg3uoilcmmSDSwU",
+  authDomain: "my-awesome-project0621.firebaseapp.com",
+  projectId: "my-awesome-project0621",
+  storageBucket: "my-awesome-project0621.firebasestorage.app",
+  messagingSenderId: "595594574751",
+  appId: "1:595594574751:web:28733f0b0dda3e9c679baa",
+  measurementId: "G-TCT8NMKGHS"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const COL = 'eval5_entries';
+
+const LABELS = ['통제·기록','이해점','행정부담','교육과정','학생성장'];
+const COLORS = ['#7F77DD','#1D9E75','#D85A30','#D4537E','#378ADD'];
+const SCORE_ITEMS = [
+  {num:1,col:'#7F77DD',title:'동제와 기록을 위한 도구',sub:'학습자 검사, 참여도, 동포방가 등'},
+  {num:2,col:'#1D9E75',title:'학습 내용 이해 점검 도구',sub:'형성평가'},
+  {num:3,col:'#D85A30',title:'행정적 부담과 민원의 근원',sub:'결과 중심 평가'},
+  {num:4,col:'#D4537E',title:'교육과정의 완성',sub:'성취기준 중심의 적정 평가'},
+  {num:5,col:'#378ADD',title:'학생 성장과 배움의 도구',sub:'탐구형 평가, 프로젝트 평가'}
+];
+
+let scores = [0,0,0,0,0];
+let avgChart = null;
+let selectedIds = new Set();
+let allEntries = [];
+
+function initScoreItems(){
+  const c = document.getElementById('score-items');
+  c.innerHTML = '';
+  SCORE_ITEMS.forEach((it,i)=>{
+    const d = document.createElement('div');
+    d.className = 'score-item';
+    d.innerHTML = `<div class="score-num" style="background:${it.col}">${it.num}</div>
+    <div class="score-desc">
+      <div class="stit">${it.title}</div>
+      <div class="ssub">${it.sub}</div>
+      <div class="score-btns" id="sb-${i}">
+        ${[1,2,3,4,5].map(n=>`<button onclick="setScore(${i},${n})" id="sb-${i}-${n}">${n}</button>`).join('')}
+      </div>
+    </div>`;
+    c.appendChild(d);
+  });
+}
+
+function setScore(idx,val){
+  scores[idx]=val;
+  for(let n=1;n<=5;n++){
+    const b=document.getElementById(`sb-${idx}-${n}`);
+    b.className=n===val?'sel':'';
+  }
+  drawRadar();
+}
+
+function drawRadar(canvasId='radar-canvas', scoresArr=scores, size=170){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2+6,R=size*0.38;
+  const angles=LABELS.map((_,i)=>(-Math.PI/2)+i*(2*Math.PI/5));
+  ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.lineWidth=0.5;
+  [1,2,3,4,5].forEach(lvl=>{
+    ctx.beginPath();
+    angles.forEach((a,i)=>{
+      const r=R*lvl/5;
+      const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.closePath();ctx.stroke();
+  });
+  angles.forEach(a=>{
+    ctx.beginPath();ctx.moveTo(cx,cy);
+    ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));
+    ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.stroke();
+  });
+  const shortLabels=['①통제','②이해','③행정','④교육','⑤성장'];
+  shortLabels.forEach((l,i)=>{
+    const a=angles[i],r=R+14;
+    const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+    ctx.fillStyle='#666';ctx.font=`10px sans-serif`;ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(l,x,y);
+  });
+  const hasData=scoresArr.some(s=>s>0);
+  if(hasData){
+    ctx.beginPath();
+    angles.forEach((a,i)=>{
+      const s=scoresArr[i]||0;
+      const r=R*s/5;
+      const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.fillStyle='rgba(245,240,0,0.4)';ctx.fill();
+    ctx.strokeStyle='#b3b000';ctx.lineWidth=2;ctx.stroke();
+  }
+}
+
+function drawMiniRadar(canvasId, scoresArr){
+  const canvas=document.getElementById(canvasId);
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  const W=canvas.width,H=canvas.height;
+  ctx.clearRect(0,0,W,H);
+  const cx=W/2,cy=H/2,R=28;
+  const angles=LABELS.map((_,i)=>(-Math.PI/2)+i*(2*Math.PI/5));
+  ctx.strokeStyle='rgba(0,0,0,0.1)';ctx.lineWidth=0.5;
+  [1,2,3,4,5].forEach(lvl=>{
+    ctx.beginPath();
+    angles.forEach((a,i)=>{
+      const r=R*lvl/5;
+      const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.closePath();ctx.stroke();
+  });
+  const hasData=scoresArr.some(s=>s>0);
+  if(hasData){
+    ctx.beginPath();
+    angles.forEach((a,i)=>{
+      const s=scoresArr[i]||0;
+      const r=R*s/5;
+      const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.closePath();
+    ctx.fillStyle='rgba(245,240,0,0.55)';ctx.fill();
+    ctx.strokeStyle='#b3b000';ctx.lineWidth=1.5;ctx.stroke();
+  }
+}
+
+function showTab(t){
+  document.getElementById('view-form').style.display=t==='form'?'block':'none';
+  document.getElementById('view-dash').style.display=t==='dash'?'block':'none';
+  document.getElementById('view-form').className='page'+(t==='form'?' active':'');
+  document.getElementById('tab-form').className='tab-btn'+(t==='form'?' active':'');
+  document.getElementById('tab-dash').className='tab-btn'+(t==='dash'?' active':'');
+  if(t==='dash') loadDash();
+}
+
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+async function submitForm(){
+  const nick=document.getElementById('f-nick').value.trim();
+  const school=document.getElementById('f-school').value.trim();
+  const subject=document.getElementById('f-subject').value.trim();
+  if(!nick){showToast('닉네임을 입력해주세요.');return;}
+  if(scores.every(s=>s===0)){showToast('점수를 하나 이상 선택해주세요.');return;}
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true;btn.textContent='제출 중...';
+  try{
+    await db.collection(COL).add({
+      nick,school,subject,
+      scores:[...scores],
+      agree:document.getElementById('f-agree').value.trim(),
+      change:document.getElementById('f-change').value.trim(),
+      action:document.getElementById('f-action').value.trim(),
+      ts:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('✅ 제출 완료! 대시보드에서 확인하세요.');
+    showTab('dash');
+  }catch(e){
+    showToast('오류가 발생했습니다: '+e.message);
+  }finally{
+    btn.disabled=false;btn.textContent='결과 제출하기';
+  }
+}
+
+async function loadDash(){
+  document.getElementById('db-count').textContent='불러오는 중...';
+  document.getElementById('entries-list').innerHTML='<div class="empty-state">데이터를 불러오는 중입니다...</div>';
+  document.getElementById('summary-section').style.display='none';
+  selectedIds.clear();updateSelBar();
+  try{
+    const snap=await db.collection(COL).orderBy('ts','desc').get();
+    allEntries=snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderDash();
+  }catch(e){
+    document.getElementById('entries-list').innerHTML='<div class="empty-state">데이터를 불러오지 못했습니다.<br>'+e.message+'</div>';
+    document.getElementById('db-count').textContent='오류 발생';
+  }
+}
+
+function renderDash(){
+  const list=document.getElementById('entries-list');
+  const total=allEntries.length;
+  document.getElementById('db-count').textContent=`총 ${total}명 제출`;
+  if(total===0){
+    list.innerHTML='<div class="empty-state">아직 제출된 결과가 없습니다.<br>활동지를 작성하고 제출해주세요. 📝</div>';
+    document.getElementById('summary-section').style.display='none';
+    document.getElementById('btn-del-all').className='btn btn-danger disabled';
+    return;
+  }
+  document.getElementById('btn-del-all').className='btn btn-danger';
+  document.getElementById('summary-section').style.display='block';
+  renderSummary();
+  list.innerHTML='';
+  allEntries.forEach(e=>{
+    const sc=e.scores||[0,0,0,0,0];
+    const validScores=sc.filter(s=>s>0);
+    const avg=validScores.length?(validScores.reduce((a,b)=>a+b,0)/validScores.length).toFixed(1):'-';
+    const ts=e.ts?new Date(e.ts.seconds*1000).toLocaleString('ko-KR',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
+    const card=document.createElement('div');
+    card.className='entry-card';
+    card.id='card-'+e.id;
+    card.innerHTML=`
+    <input type="checkbox" class="entry-check" onchange="toggleSel('${e.id}',this)" ${selectedIds.has(e.id)?'checked':''}>
+    <div class="entry-body">
+      <div class="entry-top">
+        <span class="badge">${e.subject||'과목없음'}</span>
+        <span class="badge-time">${ts}</span>
+      </div>
+      <div class="entry-name">${e.nick||'(이름없음)'}</div>
+      <div class="entry-meta">${e.school||''}</div>
+      <div class="entry-scores">
+        ${SCORE_ITEMS.map((it,i)=>`<span class="score-pill" style="border-left-color:${it.col}">${it.title.slice(0,5)} <b>${sc[i]||'-'}</b>점</span>`).join('')}
+        <span class="score-pill">평균 <b>${avg}</b></span>
+      </div>
+      ${e.agree||e.change||e.action?`<div class="entry-reflect">
+        ${e.agree?`<b>💬 공감:</b> ${e.agree}<br>`:''}
+        ${e.change?`<b>🔄 변화:</b> ${e.change}<br>`:''}
+        ${e.action?`<b>✊ 다짐:</b> ${e.action}`:''}
+      </div>`:''}
+    </div>
+    <div style="flex-shrink:0">
+      <canvas id="mini-${e.id}" width="68" height="68"></canvas>
+    </div>`;
+    list.appendChild(card);
+    setTimeout(()=>drawMiniRadar('mini-'+e.id, sc),30);
+  });
+}
+
+function renderSummary(){
+  const n=allEntries.length;
+  const avgs=LABELS.map((_,i)=>{
+    const vals=allEntries.map(e=>(e.scores||[])[i]).filter(s=>s>0);
+    return vals.length?+(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):0;
+  });
+  const validAvgs=avgs.filter(v=>v>0);
+  const overall=validAvgs.length?(validAvgs.reduce((a,b)=>a+b,0)/validAvgs.length).toFixed(1):'-';
+  const maxIdx=avgs.indexOf(Math.max(...avgs));
+  const subjects={};
+  allEntries.forEach(e=>{const s=e.subject||'미입력';subjects[s]=(subjects[s]||0)+1;});
+  document.getElementById('summary-grid').innerHTML=`
+    <div class="metric-card"><div class="metric-val">${n}</div><div class="metric-lbl">총 참여자</div></div>
+    <div class="metric-card"><div class="metric-val">${overall}</div><div class="metric-lbl">전체 평균</div></div>
+    <div class="metric-card"><div class="metric-val">${maxIdx+1}번</div><div class="metric-lbl">최고 평균 시선</div></div>
+    <div class="metric-card"><div class="metric-val">${Object.keys(subjects).length}</div><div class="metric-lbl">참여 과목 수</div></div>`;
+  document.getElementById('subject-dist').innerHTML=Object.entries(subjects).sort((a,b)=>b[1]-a[1])
+    .map(([k,v])=>`<span class="score-pill">${k} <b>${v}명</b></span>`).join('');
+  if(avgChart){avgChart.destroy();avgChart=null;}
+  const ac=document.getElementById('avg-chart');
+  if(ac){
+    avgChart=new Chart(ac,{
+      type:'bar',
+      data:{
+        labels:['①통제·기록','②이해점','③행정부담','④교육과정','⑤학생성장'],
+        datasets:[{data:avgs,backgroundColor:COLORS.map(c=>c+'99'),borderColor:COLORS,borderWidth:1.5,borderRadius:5}]
+      },
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{min:0,max:5,ticks:{stepSize:1},grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+    });
+  }
+}
+
+function toggleSel(id,cb){
+  if(cb.checked)selectedIds.add(id);else selectedIds.delete(id);
+  updateSelBar();
+}
+
+function updateSelBar(){
+  const bar=document.getElementById('sel-bar');
+  const btn=document.getElementById('btn-del-sel');
+  const n=selectedIds.size;
+  bar.style.display=n>0?'flex':'none';
+  document.getElementById('sel-count').textContent=n+'개 선택됨';
+  btn.className='btn btn-danger'+(n===0?' disabled':'');
+}
+
+function clearSelection(){
+  selectedIds.clear();
+  document.querySelectorAll('.entry-check').forEach(cb=>cb.checked=false);
+  updateSelBar();
+}
+
+async function deleteSelected(){
+  if(selectedIds.size===0)return;
+  if(!confirm(`선택한 ${selectedIds.size}개의 결과를 삭제하시겠습니까?`))return;
+  try{
+    const batch=db.batch();
+    selectedIds.forEach(id=>batch.delete(db.collection(COL).doc(id)));
+    await batch.commit();
+    selectedIds.clear();
+    showToast('삭제되었습니다.');
+    loadDash();
+  }catch(e){showToast('삭제 실패: '+e.message);}
+}
+
+async function deleteAll(){
+  if(allEntries.length===0)return;
+  if(!confirm(`전체 ${allEntries.length}개의 결과를 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.`))return;
+  try{
+    const batch=db.batch();
+    allEntries.forEach(e=>batch.delete(db.collection(COL).doc(e.id)));
+    await batch.commit();
+    selectedIds.clear();
+    showToast('전체 삭제되었습니다.');
+    loadDash();
+  }catch(e){showToast('삭제 실패: '+e.message);}
+}
+
+initScoreItems();
+drawRadar();
+</script>
+</body>
+</html>
