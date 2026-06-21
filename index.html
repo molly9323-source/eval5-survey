@@ -132,12 +132,12 @@ input[type=text]:focus,textarea:focus{outline:none;border-color:#c8c000;box-shad
     </div>
     <div>
       <div class="field-label">근무교</div>
-      <div class="field-hint">예) ○○중학교</div>
+      <div class="field-hint">예) ○○중</div>
       <input type="text" id="f-school" placeholder="학교명 입력">
     </div>
     <div>
       <div class="field-label">과목</div>
-      <div class="field-hint">예) 국어</div>
+      <div class="field-hint">예) 역사</div>
       <input type="text" id="f-subject" placeholder="과목 입력">
     </div>
   </div>
@@ -293,7 +293,7 @@ function drawRadar(canvasId='radar-canvas', scoresArr=scores, size=170){
     ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));
     ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.stroke();
   });
-  const shortLabels=['①통제','②이해','③행정','④교육','⑤성장'];
+  const shortLabels=['①','②','③','④','⑤'];
   shortLabels.forEach((l,i)=>{
     const a=angles[i],r=R+14;
     const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
