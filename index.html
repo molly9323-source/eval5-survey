@@ -293,7 +293,7 @@ function drawRadar(canvasId='radar-canvas', scoresArr=scores, size=170){
     ctx.lineTo(cx+R*Math.cos(a),cy+R*Math.sin(a));
     ctx.strokeStyle='rgba(0,0,0,0.08)';ctx.stroke();
   });
-  const shortLabels=['①','②','③','④','⑤'];
+  const shortLabels=['①통제·기록','②이해점검','③행정부담','④교육과정','⑤학생성장'];
   shortLabels.forEach((l,i)=>{
     const a=angles[i],r=R+14;
     const x=cx+r*Math.cos(a),y=cy+r*Math.sin(a);
